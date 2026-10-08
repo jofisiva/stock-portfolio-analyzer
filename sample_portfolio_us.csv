@@ -1,11 +1,11 @@
 ticker,company_name,sector,quantity,buy_price,buy_date,current_price
-ALDERSW,Alder Software (Fictional),Information Technology,20,142.50,2023-03-14,188.20
-BRKFIN,Brookfield Lane Bank (Fictional),Financials,35,58.40,2022-10-05,51.75
-CEDRX,Cedar Therapeutics (Fictional),Healthcare,15,96.00,2024-01-22,96.00
-DUNEPWR,Dune Power & Light (Fictional),Utilities,50,41.20,2023-06-30,47.85
-ELMGRO,Elm Street Grocers (Fictional),Consumer Staples,25,73.10,2024-02-12,68.40
-FORGEMT,Forge Metals (Fictional),Materials,40,33.75,2022-09-08,39.90
-GRANRL,Granite Rail Systems (Fictional),Industrials,30,118.00,2023-08-21,104.60
-HARBRV,Harbor Vehicles (Fictional),Automobile,10,212.40,2024-04-17,247.10
-IRISCOM,Iris Communications (Fictional),Communication Services,60,22.80,2023-01-26,18.35
-JUNIPRE,Juniper Realty Trust (Fictional),Real Estate,45,54.30,2024-05-29,59.15
+AAPL,Apple,Information Technology,15,150.00,2023-01-20,245.00
+MSFT,Microsoft,Information Technology,8,410.00,2024-03-11,510.00
+NVDA,NVIDIA,Information Technology,40,48.00,2023-05-15,180.00
+JPM,JPMorgan Chase,Financials,10,145.00,2023-04-03,300.00
+JNJ,Johnson & Johnson,Healthcare,12,165.00,2023-08-14,180.00
+PFE,Pfizer,Healthcare,50,37.50,2023-10-02,25.00
+XOM,Exxon Mobil,Energy,20,112.00,2024-04-08,112.00
+KO,Coca-Cola,Consumer Staples,25,62.00,2024-06-17,70.00
+NKE,Nike,Consumer Discretionary,15,98.00,2024-02-20,65.00
+INTC,Intel,Information Technology,30,44.00,2024-01-08,36.00

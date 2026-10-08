@@ -1,11 +1,11 @@
 ticker,company_name,sector,quantity,buy_price,buy_date,current_price
-AARVITECH,Aarvi Technologies (Fictional),Information Technology,25,1450.00,2023-04-12,1782.50
-BHARATLEND,Bharat Lending Corp (Fictional),Financials,40,620.00,2022-11-03,548.75
-CHANDRAPHR,Chandra Pharma (Fictional),Healthcare,15,2310.00,2024-01-18,2310.00
-DEVAGRID,Devagrid Power (Fictional),Utilities,100,185.40,2023-07-25,231.60
-EKAMFOODS,Ekam Foods (Fictional),Consumer Staples,30,940.00,2024-03-08,872.30
-GANGASTEEL,Ganga Steelworks (Fictional),Materials,60,412.00,2022-08-19,498.90
-HIMRAIL,Himalaya Rail Infra (Fictional),Industrials,80,265.50,2023-09-14,239.10
-INDRAAUTO,Indra Motors (Fictional),Automobile,12,3120.00,2024-05-02,3564.00
-JALTEL,Jal Telecom (Fictional),Communication Services,200,78.25,2023-02-27,64.80
-KAVERIRE,Kaveri Realty (Fictional),Real Estate,50,505.00,2024-06-21,561.25
+RELIANCE,Reliance Industries,Energy,30,1210.00,2023-03-15,1385.00
+TCS,Tata Consultancy Services,Information Technology,10,3850.00,2024-02-12,3120.00
+ICICIBANK,ICICI Bank,Financials,25,905.00,2023-06-20,1390.00
+INFY,Infosys,Information Technology,20,1620.00,2024-08-05,1495.00
+HINDUNILVR,Hindustan Unilever,Consumer Staples,12,2480.00,2024-01-10,2480.00
+SUNPHARMA,Sun Pharmaceutical Industries,Healthcare,18,1150.00,2023-09-18,1690.00
+TATASTEEL,Tata Steel,Materials,150,118.00,2023-05-08,158.00
+ASIANPAINT,Asian Paints,Materials,10,3150.00,2024-03-04,2450.00
+MARUTI,Maruti Suzuki India,Automobile,3,12400.00,2024-07-15,15800.00
+BHARTIARTL,Bharti Airtel,Communication Services,20,1530.00,2024-09-30,1910.00

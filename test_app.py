@@ -5,12 +5,19 @@ import math
 from datetime import date
 
 import pandas as pd
+from pathlib import Path
 
-from app import (FLAT, GAIN, LOSS, MARKETS, SAMPLE_PATH, allocation,
+from app import (FLAT, GAIN, LOSS, MARKETS, OTHER, ticker_colors, SAMPLE_PATH, allocation,
                  apply_filters, export_csv, format_money, format_pct, portfolio_xirr, xirr,
                  format_signed_money, health_summary, load_portfolio, pnl_chart,
                  portfolio_health, portfolio_summary,
                  sector_allocation_chart, stock_allocation_chart)
+
+# The calculation checks use fixed fictional fixtures, not the app's sample files,
+# so the samples can change without breaking the expected numbers.
+FIXTURES = Path(__file__).parent / "test_data"
+FIXTURE_INDIA = FIXTURES / "fictional_india.csv"
+FIXTURE_USA = FIXTURES / "fictional_usa.csv"
 
 HEADER = "ticker,company_name,sector,quantity,buy_price,buy_date,current_price\n"
 
@@ -63,7 +70,7 @@ def errors_for(body):
 
 
 def test_sample_loads():
-    df, errors = load_portfolio(SAMPLE_PATH.read_bytes())
+    df, errors = load_portfolio(FIXTURE_INDIA.read_bytes())
     assert errors == [] and len(df) == 10
     assert (df["unrealized_pnl"] > 0).any() and (df["unrealized_pnl"] < 0).any()
     assert (df["unrealized_pnl"] == 0).any()
@@ -111,12 +118,24 @@ def test_allocation_weights():
 
 
 def test_charts_match_table():
-    df, _ = load_portfolio(SAMPLE_PATH.read_bytes())
+    df, _ = load_portfolio(FIXTURE_INDIA.read_bytes())
     total = df["current_value"].sum()
     by_ticker = df.set_index("ticker")
 
     pie = stock_allocation_chart(allocation(df, "ticker")).data[0]
-    assert dict(zip(pie.labels, pie.values)) == by_ticker["current_value"].to_dict()
+    slices = dict(zip(pie.labels, pie.values))
+    # The 8 largest get their own slice with their table value; the other 2 fold into Other.
+    top8 = df.nlargest(8, "current_value")["ticker"]
+    assert all(slices[t] == by_ticker.loc[t, "current_value"] for t in top8)
+    assert math.isclose(slices["Other (2)"],
+                        by_ticker.drop(list(top8))["current_value"].sum())
+    assert math.isclose(sum(pie.values), total) and len(set(pie.marker.colors)) == 9
+    # A filtered view keeps each ticker's colour from the full portfolio.
+    colors = ticker_colors(df)
+    small = apply_filters(df, status="Loss")
+    pie2 = stock_allocation_chart(allocation(small, "ticker"), colors=colors).data[0]
+    for label, color in zip(pie2.labels, pie2.marker.colors):
+        assert color == colors.get(label, OTHER) or label.startswith("Other")
 
     sector = sector_allocation_chart(allocation(df, "sector")).data[0]
     expected = (df.groupby("sector")["current_value"].sum() / total * 100).to_dict()
@@ -132,7 +151,7 @@ def test_charts_match_table():
 
 
 def test_filters():
-    df, _ = load_portfolio(SAMPLE_PATH.read_bytes())
+    df, _ = load_portfolio(FIXTURE_INDIA.read_bytes())
     tickers = lambda d: sorted(d["ticker"])
 
     assert len(apply_filters(df)) == 10
@@ -166,7 +185,7 @@ def test_filters():
 
 
 def test_export_rows():
-    df, _ = load_portfolio(SAMPLE_PATH.read_bytes())
+    df, _ = load_portfolio(FIXTURE_INDIA.read_bytes())
     sel = apply_filters(df, status="Loss")
     out = pd.read_csv(io.BytesIO(export_csv(sel)))
     assert sorted(out["ticker"]) == sorted(sel["ticker"]) and len(out) == 4
@@ -188,8 +207,8 @@ def test_app_filter_reset_and_empty():
     assert "10 of 10" in at.caption[0].value and "Filters active" not in at.caption[0].value
 
     at.radio(key="f_status").set_value("Loss").run()
-    assert "4 of 10" in at.caption[0].value and "Filters active" in at.caption[0].value
-    assert len(at.dataframe[0].value) == 4
+    assert "3 of 10" in at.caption[0].value and "Filters active" in at.caption[0].value
+    assert len(at.dataframe[0].value) == 3
 
     at.text_input(key="f_search").set_value("zzz").run()  # nothing matches
     assert "0 of 10" in at.caption[0].value
@@ -219,7 +238,7 @@ def test_app_market_switch():
     assert at.radio(key="f_status").value == "All"
     values = [m.value for m in at.metric[:3]]
     assert all("$" in v and "₹" not in v for v in values), values
-    assert "ALDERSW" in set(at.dataframe[0].value["ticker"])
+    assert "AAPL" in set(at.dataframe[0].value["ticker"])
     assert "$" in at.info[1].value and "₹" not in at.info[1].value  # health summary
 
 
@@ -244,7 +263,7 @@ def test_parsing_edge_cases():
 
 
 def test_health():
-    df, _ = load_portfolio(SAMPLE_PATH.read_bytes())
+    df, _ = load_portfolio(FIXTURE_INDIA.read_bytes())
     h = portfolio_health(df)
     total = df["current_value"].sum()
     top3 = df.nlargest(3, "current_value")
@@ -317,7 +336,7 @@ def test_format_money():
 
 
 def test_us_sample_and_currency_outputs():
-    df, errors = load_portfolio(MARKETS["USA ($ USD)"]["sample"].read_bytes())
+    df, errors = load_portfolio(FIXTURE_USA.read_bytes())
     assert errors == [] and len(df) == 10
     assert set(df["status"]) == {"Gain", "Loss", "Unchanged"}
     fig = pnl_chart(df, "USD")

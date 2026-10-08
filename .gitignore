@@ -18,6 +18,7 @@ __pycache__/
 *.csv
 !sample_portfolio.csv
 !sample_portfolio_us.csv
+!test_data/*.csv
 *.xlsx
 *.xls
 

@@ -14,13 +14,12 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from theme import (CATEGORICAL, FLAT, OTHER, GAIN, GAIN_TEXT, LOSS, LOSS_TEXT, PAPER,
-                   SECTOR_BAR, SECTOR_BAR_SELECTED, apply_theme)
+from theme import (ACCENT, DONUT_SHADES, FLAT, GAIN, GAIN_TEXT, LOSS, LOSS_TEXT, PAPER,
+                   SECTOR_BAR, apply_theme)
 
 HERE = Path(__file__).parent
 SAMPLE_PATH = HERE / "sample_portfolio.csv"
-# Market picks the currency used for display and which sample loads. Samples use
-# real companies with illustrative prices (not market data).
+# Market picks the currency used for display and which fictional sample loads.
 # A portfolio must be in one currency: values are summed with no FX conversion.
 MARKETS = {
     "India (₹ INR)": {"currency": "INR", "sample": SAMPLE_PATH},
@@ -285,8 +284,8 @@ def show_health(holdings, cur):
         sectors, sector_weight = h["sector"]
         cols[2].metric("Largest sector", ", ".join(sectors), f"{sector_weight:.2f}% of value",
                        delta_color="off")
-    cols[3].metric("Gains / losses / unchanged",
-                   f"{h['gains']} / {h['losses']} / {h['unchanged']}")
+    cols[3].metric("Gain · Loss · Unchanged",
+                   f"{h['gains']} · {h['losses']} · {h['unchanged']}")
     # The marker turns the next info box into the italic pull quote (see theme.py).
     st.markdown('<span class="bs-quote-next"></span>', unsafe_allow_html=True)
     st.info(health_summary(h, cur))
@@ -294,40 +293,19 @@ def show_health(holdings, cur):
                 'fixed rules.</span>', unsafe_allow_html=True)
 
 
-def ticker_colors(holdings):
-    """Fixed colour per ticker: the 8 largest by current value get the categorical
-    slots in order; everything else is 'Other'. Build it from the unfiltered
-    holdings so a ticker keeps its colour when filters change."""
-    top = holdings.sort_values(["current_value", "ticker"], ascending=[False, True]).head(
-        len(CATEGORICAL))
-    return dict(zip(top["ticker"], CATEGORICAL))
-
-
-def stock_allocation_chart(alloc, cur="INR", count=None, colors=None):
-    colors = colors if colors is not None else ticker_colors(alloc)
-    named = alloc[alloc["ticker"].isin(colors)]
-    rest = alloc[~alloc["ticker"].isin(colors)]
-    labels, values = list(named["ticker"]), list(named["current_value"])
-    # Pie slices ignore list-valued customdata in hover templates, so pre-build the text.
-    hover = [f"Current value: {v}<br>Weight: {w:.2f}%"
-             for v, w in zip(named["value_label"], named["weight_pct"])]
-    fills = [colors[t] for t in named["ticker"]]
-    if not rest.empty:  # a 9th colour would be unreadable, so fold the rest into one slice
-        labels.append(f"Other ({len(rest)})")
-        values.append(rest["current_value"].sum())
-        hover.append(f"Current value: {format_money(rest['current_value'].sum(), cur)}"
-                     f"<br>Weight: {rest['weight_pct'].sum():.2f}%"
-                     f"<br>{', '.join(rest['ticker'])}")
-        fills.append(OTHER)
+def stock_allocation_chart(alloc, cur="INR", count=None):
+    colors = [DONUT_SHADES[i % len(DONUT_SHADES)] for i in range(len(alloc))]
     fig = go.Figure(go.Pie(
-        labels=labels, values=values, hole=0.62,
+        labels=alloc["ticker"], values=alloc["current_value"], hole=0.62,
         sort=False, direction="clockwise", textinfo="none",
-        marker=dict(colors=fills, line=dict(color=PAPER, width=2)),
-        hovertext=hover, hovertemplate="<b>%{label}</b><br>%{hovertext}<extra></extra>",
+        marker=dict(colors=colors, line=dict(color=PAPER, width=2)),
+        customdata=alloc[["value_label", "weight_pct"]],
+        hovertemplate="<b>%{label}</b><br>Current value: %{customdata[0]}"
+                      "<br>Weight: %{customdata[1]:.2f}%<extra></extra>",
     ))
     n = count if count is not None else len(alloc)
     fig.update_layout(
-        title="Allocation by stock (% of current value)", height=340, plot_bgcolor=PAPER,
+        title="Allocation by stock (% of current value)", height=340,
         legend=dict(title_text="", orientation="v", x=1.02, y=0.5, yanchor="middle"),
         annotations=[dict(text=f"<span style='font-size:11px'>{n} HOLDING{'' if n == 1 else 'S'}</span><br>"
                                f"<b>{format_money(alloc['current_value'].sum(), cur)}</b>",
@@ -338,7 +316,7 @@ def stock_allocation_chart(alloc, cur="INR", count=None, colors=None):
 
 def sector_allocation_chart(alloc, selected=()):
     alloc = alloc.iloc[::-1]  # largest at the top of a horizontal bar chart
-    colors = [SECTOR_BAR_SELECTED if s in selected else SECTOR_BAR for s in alloc["sector"]]
+    colors = [ACCENT if s in selected else SECTOR_BAR for s in alloc["sector"]]
     fig = go.Figure(go.Bar(
         x=alloc["weight_pct"], y=alloc["sector"], orientation="h",
         marker_color=colors, width=0.5,
@@ -349,7 +327,6 @@ def sector_allocation_chart(alloc, selected=()):
                       "<br>Weight: %{x:.2f}%<br><i>Click to filter</i><extra></extra>",
     ))
     fig.update_layout(title="Allocation by sector (% of current value)", height=340,
-                      plot_bgcolor=PAPER,
                       xaxis=dict(visible=False), yaxis_title=None,
                       margin=dict(r=48), clickmode="event+select")
     return fig
@@ -376,8 +353,7 @@ def pnl_chart(df, cur="INR"):
     fig.update_layout(
         title=f"Unrealized P&L by stock ({symbol}, high to low · cyan gain, magenta loss)",
         xaxis_title=None, yaxis_title=f"Unrealized P&L ({symbol})",
-        yaxis_tickprefix=symbol, yaxis_zeroline=True, height=380, bargap=0.45,
-        plot_bgcolor=PAPER)
+        yaxis_tickprefix=symbol, yaxis_zeroline=True, height=380, bargap=0.45)
     return fig
 
 
@@ -393,8 +369,8 @@ def on_sector_click():
     st.session_state["f_sectors"] = chosen
 
 
-def show_charts(holdings, cur, colors=None):
-    st.subheader("Allocation and P&L")
+def show_charts(holdings, cur):
+    st.subheader("Dashboard")
     st.caption("A snapshot of the CSV prices only. No historical performance, volatility, "
                "drawdown, or benchmark comparison is shown; those need historical "
                "price and transaction data. Click a sector bar to filter by it.")
@@ -405,14 +381,11 @@ def show_charts(holdings, cur, colors=None):
                    "are undefined. Allocation charts are hidden.")
     else:
         left, right = st.columns(2, gap="large")
-        # theme=None: use the broadsheet Plotly template, not Streamlit's (possibly dark) theme.
-        left.plotly_chart(stock_allocation_chart(by_stock, cur, colors=colors),
-                          use_container_width=True,
-                          theme=None)
+        left.plotly_chart(stock_allocation_chart(by_stock, cur), use_container_width=True)
         right.plotly_chart(sector_allocation_chart(by_sector, st.session_state.get("f_sectors", [])),
-                           use_container_width=True, key="sector_chart", theme=None,
+                           use_container_width=True, key="sector_chart",
                            on_select=on_sector_click, selection_mode="points")
-    st.plotly_chart(pnl_chart(holdings, cur), use_container_width=True, theme=None)
+    st.plotly_chart(pnl_chart(holdings, cur), use_container_width=True)
 
 
 def format_money(value, cur="INR"):
@@ -462,9 +435,7 @@ def performer_card(label, entries, holding_count, cur):
     pct = entries[0]["return_pct"]
     tickers = ", ".join(e["ticker"] for e in entries)
     st.metric(label, tickers, delta=f"{format_pct(pct)} return", delta_color=delta_color(pct))
-    # The caption renders HTML, so escape the ticker (it comes from the uploaded CSV).
-    pnl = " · ".join(f"{html.escape(e['ticker'])}: "
-                     f"{colored(format_signed_money(e['pnl'], cur), e['pnl'])}"
+    pnl = " · ".join(f"{e['ticker']}: {colored(format_signed_money(e['pnl'], cur), e['pnl'])}"
                      for e in entries)
     st.caption(f"P&L {pnl}", unsafe_allow_html=True)
     if holding_count == 1:
@@ -473,32 +444,20 @@ def performer_card(label, entries, holding_count, cur):
         st.caption(f"Tie: {len(entries)} holdings share this return.")
 
 
-SUMMARY_GRID = [1.4, 1, 1]  # both summary rows share it so their columns line up
-
-
-def show_summary(holdings, cur, as_of):
-    """Headline band (current value, P&L, invested), then best / worst / XIRR."""
+def show_summary(holdings, cur):
     s = portfolio_summary(holdings)
-    hero, pnl_col, invested_col = st.columns(SUMMARY_GRID, gap="large")
-    with hero:
-        st.metric("Current value", format_money(s["current"], cur))
-        # The marker makes this column's figure the page headline (see theme.py). It goes
-        # after the metric so its empty row doesn't push the label down.
-        st.markdown('<span class="bs-hero"></span>', unsafe_allow_html=True)
-    with pnl_col:
+    cols = st.columns(5, gap="large")
+    cols[0].metric("Total invested", format_money(s["invested"], cur))
+    cols[1].metric("Current value", format_money(s["current"], cur))
+    with cols[2]:
         st.metric("Unrealized P&L", format_signed_money(s["pnl"], cur),
                   delta=f"{format_pct(s['return_pct'])} portfolio return",
                   delta_color=delta_color(s["pnl"]))
         st.caption("Total P&L ÷ total invested, not an average of holdings.")
-    invested_col.metric("Invested", format_money(s["invested"], cur))
-
-    best, worst, rate = st.columns(SUMMARY_GRID, gap="large")  # same grid: columns align
-    with best:
+    with cols[3]:
         performer_card("Best performer", s["best"], len(holdings), cur)
-    with worst:
+    with cols[4]:
         performer_card("Worst performer", s["worst"], len(holdings), cur)
-    with rate:
-        show_xirr(holdings, as_of)
 
 
 def load_portfolio(data):
@@ -555,24 +514,29 @@ def portfolio_xirr(df, as_of):
     return xirr(flows)
 
 
-def show_xirr(selected, as_of):
+def show_annualized(selected, as_of):
     rate = portfolio_xirr(selected, as_of)
     bought = selected["buy_date"].dt.date
-    st.metric("Annualized return (XIRR)", format_pct(rate), delta_color="off",
-              help="Annual rate that makes the money invested on each buy date grow to "
-                   "today's total value. Each row counts as one purchase on its buy date, "
-                   "so extra buys, partial sales and dividends are not included.")
-    st.caption(f"Prices as of {as_of:%Y-%m-%d}. Uses buy and current price only, "
-               "not a price history.")
-    if (bought > as_of).any():
-        note = ("Some buy dates are after the as-of date, so XIRR is N/A. "
-                "Change <b>Prices as of</b> in the sidebar.")
-    elif (as_of - bought.min()).days < 365:
-        note = ("Every selected holding was bought less than a year ago, so this "
-                "annualizes a short period and can look extreme.")
-    else:
-        return
-    st.markdown(f'<p class="bs-warn">⚠ {note}</p>', unsafe_allow_html=True)
+    left, right = st.columns([1, 2], gap="large")
+    left.metric("Annualized return (XIRR)", format_pct(rate), delta_color="off",
+                help="Annual rate that makes the money invested on each buy date "
+                     "grow to today's total value.")
+    with right:
+        st.markdown(
+            f'<p class="bs-note" style="padding-top:6px">Prices treated as of '
+            f'<b>{as_of:%Y-%m-%d}</b>. Each row is one purchase on its buy date (one row per '
+            'ticker), so extra buys, partial sales and dividends are not included. These are '
+            'two-point returns (buy and current price), not a price history.</p>',
+            unsafe_allow_html=True)
+        note = None
+        if (bought > as_of).any():
+            note = ("Some buy dates are after the as-of date, so XIRR is N/A. "
+                    "Change <b>Prices as of</b> in the sidebar.")
+        elif (as_of - bought.min()).days < 365:
+            note = ("Every selected holding was bought less than a year ago, so the XIRR "
+                    "annualizes a short period and can look extreme.")
+        if note:
+            st.markdown(f'<p class="bs-warn">⚠ {note}</p>', unsafe_allow_html=True)
 
 
 STATUSES = ["All", "Gain", "Loss", "Unchanged"]
@@ -780,8 +744,7 @@ def main():
 
     if uploaded is None:
         data, source = sample_bytes, sample_path.name
-        label = (f"**Sample data, {market}** — real companies, illustrative prices "
-                 "(not market data)")
+        label = f"**Sample data, {market}** — all holdings and prices are fictional"
     else:
         data, source = uploaded.getvalue(), uploaded.name
         label = f"**Uploaded data**: {uploaded.name}, shown as {market}"
@@ -810,8 +773,9 @@ def main():
         show_empty(holdings, filters, bounds)
         st.stop()
 
-    show_summary(selected, cur, as_of)
-    show_charts(selected, cur, ticker_colors(holdings))
+    show_summary(selected, cur)
+    show_annualized(selected, as_of)
+    show_charts(selected, cur)
     show_health(selected, cur)
     show_table(selected, source, active, cur)
 
