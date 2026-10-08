@@ -13,7 +13,7 @@ Setup before recording:
 0:00-0:30  THE PROBLEM
   Say: "Spreadsheets of stock holdings tell you what you own, but not how you
   are doing overall or where your money is concentrated. This app takes a CSV
-  snapshot of Indian stock holdings, checks it, and answers: what have I
+  snapshot of Indian or US stock holdings, checks it, and answers: what have I
   invested, what is it worth now, which holdings and sectors dominate, and
   which are up or down?"
   Point to the info banner. Say: "Prices come from the CSV, not live data.
@@ -38,12 +38,14 @@ Setup before recording:
   sign and its portfolio return %, then the best and worst performer.
   Say: "Portfolio return is total P&L divided by total invested, not an average
   of individual returns."
+  Switch Market to "USA ($ USD)". Say: "The same analysis works for US holdings,
+  shown in dollars. Nothing is converted between currencies." Switch back.
 
 1:45-2:30  CHARTS
   Hover over a donut slice to show the ticker, current value and weight.
   Hover over a sector bar.
   Point to the P&L chart. Say: "It is sorted from highest to lowest, green for
-  gains and red for losses, with signed rupee labels."
+  gains and red for losses, with signed money labels."
 
 2:30-3:15  FILTERS
   - Set Status to "Loss". Point out "4 of 10" and "Filters active". Say: "The

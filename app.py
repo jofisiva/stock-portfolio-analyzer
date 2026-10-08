@@ -11,7 +11,15 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-SAMPLE_PATH = Path(__file__).parent / "sample_portfolio.csv"
+HERE = Path(__file__).parent
+SAMPLE_PATH = HERE / "sample_portfolio.csv"
+# Market picks the currency used for display and which fictional sample loads.
+# A portfolio must be in one currency: values are summed with no FX conversion.
+MARKETS = {
+    "India (₹ INR)": {"currency": "INR", "sample": SAMPLE_PATH},
+    "USA ($ USD)": {"currency": "USD", "sample": HERE / "sample_portfolio_us.csv"},
+}
+CURRENCY_SYMBOLS = {"INR": "₹", "USD": "$"}
 REQUIRED_COLUMNS = [
     "ticker", "company_name", "sector", "quantity",
     "buy_price", "buy_date", "current_price",
@@ -157,7 +165,7 @@ def portfolio_summary(df):
     }
 
 
-def allocation(df, by):
+def allocation(df, by, cur="INR"):
     """Current value and portfolio weight % grouped by `by`, largest first.
 
     Returns None when total current value is 0 (weights are undefined).
@@ -167,7 +175,7 @@ def allocation(df, by):
         return None
     out = df.groupby(by, as_index=False)["current_value"].sum()
     out["weight_pct"] = out["current_value"] / total * 100
-    out["value_label"] = out["current_value"].map(format_inr)
+    out["value_label"] = out["current_value"].map(lambda v: format_money(v, cur))
     # Stable sort keeps groupby's alphabetical order for equal values (deterministic ties).
     return out.sort_values("current_value", ascending=False, kind="stable", ignore_index=True)
 
@@ -211,14 +219,14 @@ def plural(n, word):
     return f"{n} {word}" if n == 1 else f"{n} {word}s"
 
 
-def health_summary(h):
+def health_summary(h, cur="INR"):
     """Plain-English description built only from portfolio_health() facts."""
     n = h["count"]
     parts = [f"This selection has {plural(n, 'holding')} with a current value of "
-             f"{format_inr(h['total'])} at the CSV prices."]
+             f"{format_money(h['total'], cur)} at the CSV prices."]
     if h["largest"] is None:
-        parts.append("Total current value is ₹0, so holding and sector weights "
-                     "cannot be calculated.")
+        parts.append(f"Total current value is {format_money(0, cur)}, so holding and "
+                     "sector weights cannot be calculated.")
     else:
         names, weight = h["largest"]
         if n == 1:
@@ -245,7 +253,7 @@ def health_summary(h):
     return " ".join(parts)
 
 
-def show_health(holdings):
+def show_health(holdings, cur):
     h = portfolio_health(holdings)
     st.subheader("Portfolio Health: concentration analysis")
     st.caption("Describes how concentrated the selected holdings are by current value. "
@@ -253,7 +261,7 @@ def show_health(holdings):
                "drawdown, which need historical prices. Not investment advice.")
     cols = st.columns(4)
     if h["largest"] is None:
-        st.warning("Total current value is ₹0, so weights are undefined.")
+        st.warning(f"Total current value is {format_money(0, cur)}, so weights are undefined.")
     else:
         names, weight = h["largest"]
         cols[0].metric("Largest holding", ", ".join(names), f"{weight:.2f}% of value",
@@ -267,7 +275,7 @@ def show_health(holdings):
     cols[3].metric("Gain / Loss / Unchanged",
                    f"{h['gains']} / {h['losses']} / {h['unchanged']}")
     st.markdown("**Summary** (written automatically from the figures above)")
-    st.info(health_summary(h))
+    st.info(health_summary(h, cur))
 
 
 GAIN, LOSS, FLAT = "#1a9850", "#d73027", "#9e9e9e"
@@ -301,47 +309,54 @@ def sector_allocation_chart(alloc):
     return fig
 
 
-def pnl_chart(df):
+def pnl_chart(df, cur="INR"):
     data = df.sort_values("unrealized_pnl", ascending=False)
     pnl = data["unrealized_pnl"]
+    symbol = CURRENCY_SYMBOLS[cur]
+    signed = pnl.map(lambda v: format_signed_money(v, cur))
     colors = [GAIN if v > 0 else LOSS if v < 0 else FLAT for v in pnl]
     fig = go.Figure(go.Bar(
         x=data["ticker"], y=pnl, marker_color=colors,
-        text=pnl.map(format_signed_inr), textposition="outside", cliponaxis=False,
-        customdata=list(zip(pnl.map(format_signed_inr),
+        text=signed, textposition="outside", cliponaxis=False,
+        customdata=list(zip(signed,
                             data["unrealized_return_pct"].map(format_pct),
-                            data["current_value"].map(format_inr))),
+                            data["current_value"].map(lambda v: format_money(v, cur)))),
         hovertemplate="<b>%{x}</b><br>Unrealized P&L: %{customdata[0]}"
                       "<br>Return: %{customdata[1]}"
                       "<br>Current value: %{customdata[2]}<extra></extra>",
     ))
-    fig.update_layout(title="Unrealized P&L by stock (₹, sorted high to low; green gain, red loss)",
-                      xaxis_title="Ticker", yaxis_title="Unrealized P&L (₹)",
-                      yaxis_tickprefix="₹", yaxis_zeroline=True)
+    fig.update_layout(
+        title=f"Unrealized P&L by stock ({symbol}, sorted high to low; green gain, red loss)",
+        xaxis_title="Ticker", yaxis_title=f"Unrealized P&L ({symbol})",
+        yaxis_tickprefix=symbol, yaxis_zeroline=True)
     return fig
 
 
-def show_charts(holdings):
+def show_charts(holdings, cur):
     st.subheader("Dashboard")
     st.caption("Snapshot of the CSV prices only. No historical performance, volatility, "
                "drawdown, or benchmark comparison is shown; those need historical "
                "price and transaction data.")
-    by_stock, by_sector = allocation(holdings, "ticker"), allocation(holdings, "sector")
+    by_stock = allocation(holdings, "ticker", cur)
+    by_sector = allocation(holdings, "sector", cur)
     if by_stock is None:
-        st.warning("Total current value is ₹0, so allocation weights are undefined. "
-                   "Allocation charts are hidden.")
+        st.warning(f"Total current value is {format_money(0, cur)}, so allocation weights "
+                   "are undefined. Allocation charts are hidden.")
     else:
         left, right = st.columns(2)
         left.plotly_chart(stock_allocation_chart(by_stock), use_container_width=True)
         right.plotly_chart(sector_allocation_chart(by_sector), use_container_width=True)
-    st.plotly_chart(pnl_chart(holdings), use_container_width=True)
+    st.plotly_chart(pnl_chart(holdings, cur), use_container_width=True)
 
 
-def format_inr(value):
-    """Format as rupees with Indian digit grouping, e.g. -₹1,23,456.78."""
+def format_money(value, cur="INR"):
+    """INR uses Indian grouping (-₹1,23,456.78); USD uses thousands (-$123,456.78)."""
     if pd.isna(value):
         return "N/A"
     sign = "-" if value < 0 else ""
+    symbol = CURRENCY_SYMBOLS[cur]
+    if cur != "INR":
+        return f"{sign}{symbol}{abs(value):,.2f}"
     whole, frac = f"{abs(value):.2f}".split(".")
     head, tail = whole[:-3], whole[-3:]
     groups = []
@@ -350,16 +365,16 @@ def format_inr(value):
         head = head[:-2]
     if head:
         groups.insert(0, head)
-    return f"{sign}₹{','.join(groups + [tail])}.{frac}"
+    return f"{sign}{symbol}{','.join(groups + [tail])}.{frac}"
 
 
 def format_pct(value):
     return "N/A" if pd.isna(value) else f"{value:+.2f}%"
 
 
-def format_signed_inr(value):
-    """Like format_inr but with an explicit + for gains."""
-    return ("+" if not pd.isna(value) and value > 0 else "") + format_inr(value)
+def format_signed_money(value, cur="INR"):
+    """Like format_money but with an explicit + for gains."""
+    return ("+" if not pd.isna(value) and value > 0 else "") + format_money(value, cur)
 
 
 def colored(text, value):
@@ -373,7 +388,7 @@ def delta_color(value):
     return "off" if pd.isna(value) or value == 0 else "normal"
 
 
-def performer_card(label, entries, holding_count):
+def performer_card(label, entries, holding_count, cur):
     """Metric card for best/worst performer, handling ties, one holding, and no data."""
     if not entries:
         st.metric(label, "N/A", help="No holding has a defined return (invested value is 0).")
@@ -381,7 +396,7 @@ def performer_card(label, entries, holding_count):
     pct = entries[0]["return_pct"]
     tickers = ", ".join(e["ticker"] for e in entries)
     st.metric(label, tickers, delta=f"{format_pct(pct)} return", delta_color=delta_color(pct))
-    pnl = " · ".join(f"{e['ticker']}: {colored(format_signed_inr(e['pnl']), e['pnl'])}"
+    pnl = " · ".join(f"{e['ticker']}: {colored(format_signed_money(e['pnl'], cur), e['pnl'])}"
                      for e in entries)
     st.caption(f"P&L {pnl}")
     if holding_count == 1:
@@ -390,20 +405,20 @@ def performer_card(label, entries, holding_count):
         st.caption(f"Tie: {len(entries)} holdings share this return.")
 
 
-def show_summary(holdings):
+def show_summary(holdings, cur):
     s = portfolio_summary(holdings)
     cols = st.columns(5)
-    cols[0].metric("Total invested", format_inr(s["invested"]))
-    cols[1].metric("Current value", format_inr(s["current"]))
+    cols[0].metric("Total invested", format_money(s["invested"], cur))
+    cols[1].metric("Current value", format_money(s["current"], cur))
     with cols[2]:
-        st.metric("Unrealized P&L", format_signed_inr(s["pnl"]),
+        st.metric("Unrealized P&L", format_signed_money(s["pnl"], cur),
                   delta=f"{format_pct(s['return_pct'])} portfolio return",
                   delta_color=delta_color(s["pnl"]))
         st.caption("Total P&L ÷ total invested (not an average of holdings).")
     with cols[3]:
-        performer_card("Best performer", s["best"], len(holdings))
+        performer_card("Best performer", s["best"], len(holdings), cur)
     with cols[4]:
-        performer_card("Worst performer", s["worst"], len(holdings))
+        performer_card("Worst performer", s["worst"], len(holdings), cur)
 
 
 def load_portfolio(data):
@@ -447,10 +462,11 @@ def apply_filters(df, search="", sectors=(), tickers=(), date_from=None, date_to
     return df[mask].reset_index(drop=True)
 
 
-def export_csv(df):
+def export_csv(df, cur="INR"):
     """Filtered holdings with calculated columns as CSV bytes (N/A return -> blank)."""
     out = df.copy()
     out["buy_date"] = out["buy_date"].dt.strftime("%Y-%m-%d")
+    out["currency"] = cur
     return out.round(4).to_csv(index=False).encode()
 
 
@@ -466,7 +482,7 @@ def sidebar_filters(holdings):
     st.caption("Filters combine (a holding must match all of them). "
                "Leave a list empty to include everything.")
     search = st.text_input("Search company or ticker", key="f_search",
-                           placeholder="e.g. steel or GANGA")
+                           placeholder="Part of a name or ticker")
     sectors = st.multiselect("Sector", sorted(holdings["sector"].unique()), key="f_sectors")
     tickers = st.multiselect("Ticker", sorted(holdings["ticker"]), key="f_tickers")
     dates = st.date_input("Buy date", value=(first, last), min_value=first,
@@ -492,21 +508,27 @@ def main():
         "dividends, fees, taxes, and realized trades."
     )
 
-    sample_bytes = SAMPLE_PATH.read_bytes()
     with st.sidebar:
         st.header("Data")
+        market = st.radio("Market", list(MARKETS), horizontal=True, key="market",
+                          help="Sets the currency for every value and which sample loads. "
+                               "Your CSV's prices must all be in this currency; "
+                               "nothing is converted.")
+        cur = MARKETS[market]["currency"]
+        sample_path = MARKETS[market]["sample"]
+        sample_bytes = sample_path.read_bytes()
         uploaded = st.file_uploader("Upload portfolio CSV", type="csv",
                                     help="Remove the uploaded file to return to sample data.")
-        st.download_button("Download sample CSV", sample_bytes,
-                           file_name="sample_portfolio.csv", mime="text/csv")
+        st.download_button(f"Download {cur} sample CSV", sample_bytes,
+                           file_name=sample_path.name, mime="text/csv")
         st.caption("Required columns: " + ", ".join(REQUIRED_COLUMNS))
 
     if uploaded is None:
-        data, source = sample_bytes, "sample_portfolio.csv"
-        label = "**Sample data**: all holdings and prices are fictional."
+        data, source = sample_bytes, sample_path.name
+        label = f"**Sample data, {market}**: all holdings and prices are fictional."
     else:
         data, source = uploaded.getvalue(), uploaded.name
-        label = f"**Uploaded data**: {uploaded.name}"
+        label = f"**Uploaded data**: {uploaded.name} · values shown as {market}"
 
     # Filter values from a previous file may not exist in this one: start fresh.
     data_id = hashlib.sha256(data).hexdigest()
@@ -533,23 +555,24 @@ def main():
         st.button("Reset filters", on_click=reset_filters, key="reset_empty")
         st.stop()
 
-    show_summary(selected)
-    show_charts(selected)
-    show_health(selected)
-    show_table(selected, source, active)
+    show_summary(selected, cur)
+    show_charts(selected, cur)
+    show_health(selected, cur)
+    show_table(selected, source, active, cur)
 
 
-def show_table(selected, source, active):
+def show_table(selected, source, active, cur):
     st.subheader(f"Holdings ({len(selected)})")
     st.download_button(
         "Download filtered analysis CSV" if active else "Download analysis CSV",
-        export_csv(selected), file_name=f"analysis_{Path(source).stem}.csv",
+        export_csv(selected, cur), file_name=f"analysis_{Path(source).stem}.csv",
         mime="text/csv",
-        help="Selected holdings with invested value, current value, P&L, return % and status.",
+        help="Selected holdings with invested value, current value, P&L, return %, "
+             "status and currency.",
     )
     money = ["buy_price", "current_price", "invested_value", "current_value", "unrealized_pnl"]
     styled = selected.style.format(
-        {**{c: format_inr for c in money},
+        {**{c: (lambda v: format_money(v, cur)) for c in money},
          "unrealized_return_pct": format_pct,
          "quantity": "{:g}",
          "buy_date": lambda d: d.strftime("%Y-%m-%d")}

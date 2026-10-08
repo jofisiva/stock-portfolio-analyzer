@@ -1,0 +1,11 @@
+ticker,company_name,sector,quantity,buy_price,buy_date,current_price
+ALDERSW,Alder Software,Information Technology,20,142.50,2023-03-14,188.20
+BRKFIN,Brookfield Lane Bank,Financials,35,58.40,2022-10-05,51.75
+CEDRX,Cedar Therapeutics,Healthcare,15,96.00,2024-01-22,96.00
+DUNEPWR,Dune Power & Light,Utilities,50,41.20,2023-06-30,47.85
+ELMGRO,Elm Street Grocers,Consumer Staples,25,73.10,2024-02-12,68.40
+FORGEMT,Forge Metals,Materials,40,33.75,2022-09-08,39.90
+GRANRL,Granite Rail Systems,Industrials,30,118.00,2023-08-21,104.60
+HARBRV,Harbor Vehicles,Automobile,10,212.40,2024-04-17,247.10
+IRISCOM,Iris Communications,Communication Services,60,22.80,2023-01-26,18.35
+JUNIPRE,Juniper Realty Trust,Real Estate,45,54.30,2024-05-29,59.15

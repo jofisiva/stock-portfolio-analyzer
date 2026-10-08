@@ -133,7 +133,26 @@ Prompt 5 - Portfolio Health, full review, documentation (EXECUTED)
   - Documentation: README.md, submission_notes.txt and demo_script.txt were
     written.
 
+Extra iteration (NOT in the original 5-prompt plan, EXECUTED) - USA market support
+  - Trigger: after uploading a US portfolio CSV in the browser, every value
+    was shown with the ₹ symbol, because currency had been fixed to INR.
+  - What was built:
+      - A "Market" choice in the sidebar: India (₹ INR) or USA ($ USD). It sets
+        the currency symbol and digit grouping for the cards, charts, health
+        summary and table, and adds a currency column to the export.
+      - A fictional US sample file, sample_portfolio_us.csv. It is the sample
+        that loads when USA is selected.
+      - No currency conversion: one CSV must use one currency.
+  - Checks run:
+      - USD formatting ($1,234,567.89).
+      - The US sample loads with gains, losses and an unchanged holding.
+      - The charts and summary contain no ₹ in USA mode.
+      - The export has a currency column.
+      - In a headless app run, switching to USA loaded the US sample, reset the
+        filters, and showed $ values.
+
 Still needs manual testing in a browser (not checked by the AI):
+  - Re-upload your US file with Market set to USA and check the values.
   - Uploading a real file, then swapping it for a different file (filters
     should reset).
   - Removing the uploaded file (the app should return to sample data).

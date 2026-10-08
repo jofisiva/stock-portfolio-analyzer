@@ -17,6 +17,7 @@ __pycache__/
 # Private portfolio data: only the fictional sample CSV is committed
 *.csv
 !sample_portfolio.csv
+!sample_portfolio_us.csv
 *.xlsx
 *.xls
 

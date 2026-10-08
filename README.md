@@ -1,6 +1,6 @@
 # Stock Portfolio Analyzer
 
-A Streamlit app that reads a portfolio of Indian stock holdings from a CSV file. It checks the file for errors and shows:
+A Streamlit app that reads a portfolio of Indian (₹ INR) or US ($ USD) stock holdings from a CSV file. It checks the file for errors and shows:
 
 - summary cards
 - interactive Plotly charts
@@ -10,18 +10,19 @@ A Streamlit app that reads a portfolio of Indian stock holdings from a CSV file.
 It was built as a Week 1 vibe-coding project, using an AI coding assistant.
 
 > **Important:**
-> - All holdings and prices in `sample_portfolio.csv` are **fictional**.
+> - All holdings and prices in `sample_portfolio.csv` (India) and `sample_portfolio_us.csv` (USA) are **fictional**.
 > - The app uses only the prices in your CSV. It does **not** fetch live prices.
 > - Results exclude dividends, fees, taxes, and realized trades.
 > - Nothing in the app is investment advice.
 
 ## Features
 
+- **Market:** choose India (₹ INR) or USA ($ USD) in the sidebar. This sets the currency for every card, chart, the summary, the table and the export, and picks which fictional sample loads. Values are not converted between currencies, so one CSV must use one currency.
 - **Data:** the app opens with fictional sample data. You can upload your own CSV and download the sample CSV.
 - **Validation:** an invalid file is rejected as a whole. Every problem is listed with its CSV row number. The app never drops bad rows silently and never switches back to the sample data without telling you.
 - **Summary cards:**
   - Total invested and current value.
-  - Unrealized P&L in ₹ and as a percentage.
+  - Unrealized P&L in money and as a percentage.
   - Best and worst performer, which handle ties, a single holding, and holdings with an N/A return.
 - **Charts:**
   - Allocation by stock (donut).
@@ -34,8 +35,8 @@ It was built as a Week 1 vibe-coding project, using an AI coding assistant.
   - Counts of gains, losses, and unchanged holdings.
   - A plain-English summary written automatically from those calculated figures.
 - **Filters:** search by company or ticker, sector, ticker, buy-date range (includes both end dates), and status (All, Gain, Loss, or Unchanged). Every card, chart, the health view, the table, and the export use the same filtered holdings. **Reset filters** clears them, and they also reset when you upload a different file.
-- **Export:** downloads the selected holdings with all calculated columns.
-- **Formatting:** money is shown in ₹ with Indian digit grouping (₹12,34,567.89), and returns are signed percentages.
+- **Export:** downloads the selected holdings with all calculated columns and a `currency` column.
+- **Formatting:** India uses ₹ with Indian digit grouping (₹12,34,567.89); USA uses $ with thousands grouping ($1,234,567.89). Returns are signed percentages.
 
 ## CSV schema
 
@@ -47,9 +48,9 @@ There must be one row per ticker, with a header row containing these columns (ex
 | `company_name` | text | Required. |
 | `sector` | text | Required. |
 | `quantity` | number | Must be greater than 0. |
-| `buy_price` | number (₹) | Must be 0 or more and a finite number. |
+| `buy_price` | number (₹ or $) | Must be 0 or more and a finite number. |
 | `buy_date` | date | Must be exactly `YYYY-MM-DD`, for example `2024-01-18`. |
-| `current_price` | number (₹) | Must be 0 or more and a finite number. |
+| `current_price` | number (₹ or $) | Must be 0 or more and a finite number. |
 
 The file must be saved as UTF-8; a "CSV UTF-8" file from Excel works. Blank lines are ignored. A row with too many or too few values is reported as an error.
 
@@ -130,7 +131,7 @@ The checks cover:
 
 ## Uploading to GitHub
 
-`.gitignore` already excludes virtual environments, `.env` files, Streamlit secrets, the local `.claude/` settings folder, and **every CSV except `sample_portfolio.csv`**. That keeps your private portfolio files and exported analysis out of the repository.
+`.gitignore` already excludes virtual environments, `.env` files, Streamlit secrets, the local `.claude/` settings folder, and **every CSV except the two sample files**. That keeps your private portfolio files and exported analysis out of the repository.
 
 1. Create an **empty** repository on GitHub. Don't add a README or .gitignore there, because this project already has them.
 2. In the project folder, run:
@@ -146,6 +147,7 @@ The checks cover:
    - `test_app.py`
    - `requirements.txt`
    - `sample_portfolio.csv`
+   - `sample_portfolio_us.csv`
    - `README.md`
    - `submission_notes.txt`
    - `demo_script.txt`

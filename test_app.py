@@ -6,9 +6,9 @@ from datetime import date
 
 import pandas as pd
 
-from app import (FLAT, GAIN, LOSS, SAMPLE_PATH, allocation, apply_filters, export_csv,
-                 format_inr, format_pct,
-                 format_signed_inr, health_summary, load_portfolio, pnl_chart,
+from app import (FLAT, GAIN, LOSS, MARKETS, SAMPLE_PATH, allocation, apply_filters,
+                 export_csv, format_money, format_pct,
+                 format_signed_money, health_summary, load_portfolio, pnl_chart,
                  portfolio_health, portfolio_summary,
                  sector_allocation_chart, stock_allocation_chart)
 
@@ -196,6 +196,23 @@ def test_app_filter_reset_and_empty():
     assert at.radio(key="f_status").value == "All" and "10 of 10" in at.caption[0].value
 
 
+def test_app_market_switch():
+    from streamlit.testing.v1 import AppTest
+    at = AppTest.from_file("app.py").run(timeout=30)
+    assert at.metric[0].value.startswith("₹") and "India" in at.caption[0].value
+
+    at.radio(key="f_status").set_value("Loss").run()
+    at.radio(key="market").set_value("USA ($ USD)").run()
+    assert not at.exception
+    # The US sample loaded, filters reset, and no ₹ appears in cards or table.
+    assert "USA" in at.caption[0].value and "10 of 10" in at.caption[0].value
+    assert at.radio(key="f_status").value == "All"
+    values = [m.value for m in at.metric[:3]]
+    assert all("$" in v and "₹" not in v for v in values), values
+    assert "ALDERSW" in set(at.dataframe[0].value["ticker"])
+    assert "$" in at.info[1].value and "₹" not in at.info[1].value  # health summary
+
+
 def test_parsing_edge_cases():
     # Excel's UTF-8 BOM and blank lines are accepted.
     df, errors = load_portfolio(b"\xef\xbb\xbf" + HEADER.encode()
@@ -249,13 +266,30 @@ def test_health():
     assert "cannot be calculated" in health_summary(zero)
 
 
-def test_format_inr():
-    assert format_inr(1234567.891) == "₹12,34,567.89"
-    assert format_inr(-999.5) == "-₹999.50"
-    assert format_inr(0) == "₹0.00"
-    assert format_signed_inr(100) == "+₹100.00"
-    assert format_signed_inr(-100) == "-₹100.00"
-    assert format_signed_inr(0) == "₹0.00"
+def test_format_money():
+    assert format_money(1234567.891) == "₹12,34,567.89"
+    assert format_money(-999.5) == "-₹999.50"
+    assert format_money(0) == "₹0.00"
+    assert format_signed_money(100) == "+₹100.00"
+    assert format_signed_money(-100) == "-₹100.00"
+    assert format_signed_money(0) == "₹0.00"
+    assert format_money(1234567.891, "USD") == "$1,234,567.89"
+    assert format_signed_money(-2690, "USD") == "-$2,690.00"
+    assert format_signed_money(53.06, "USD") == "+$53.06"
+    assert format_money(float("nan"), "USD") == "N/A"
+
+
+def test_us_sample_and_currency_outputs():
+    df, errors = load_portfolio(MARKETS["USA ($ USD)"]["sample"].read_bytes())
+    assert errors == [] and len(df) == 10
+    assert set(df["status"]) == {"Gain", "Loss", "Unchanged"}
+    fig = pnl_chart(df, "USD")
+    assert fig.layout.yaxis.tickprefix == "$" and "$" in fig.layout.title.text
+    assert all("₹" not in t for t in fig.data[0].text)
+    assert "$" in allocation(df, "ticker", "USD")["value_label"].iloc[0]
+    assert "$" in health_summary(portfolio_health(df), "USD")
+    out = pd.read_csv(io.BytesIO(export_csv(df, "USD")))
+    assert set(out["currency"]) == {"USD"}
 
 
 if __name__ == "__main__":
