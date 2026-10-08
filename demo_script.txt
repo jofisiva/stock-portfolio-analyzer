@@ -1,0 +1,75 @@
+DEMO SCRIPT - STOCK PORTFOLIO ANALYZER (target: 4.5 minutes, maximum 5)
+=======================================================================
+
+Setup before recording:
+  - Run "streamlit run app.py".
+  - Clear all filters.
+  - Have two files ready:
+      - an invalid CSV, for example a copy of the sample with "abc" as one
+        quantity
+      - a small valid CSV
+  - Use only fictional data on screen.
+
+0:00-0:30  THE PROBLEM
+  Say: "Spreadsheets of stock holdings tell you what you own, but not how you
+  are doing overall or where your money is concentrated. This app takes a CSV
+  snapshot of Indian stock holdings, checks it, and answers: what have I
+  invested, what is it worth now, which holdings and sectors dominate, and
+  which are up or down?"
+  Point to the info banner. Say: "Prices come from the CSV, not live data.
+  Dividends, fees and taxes are not included."
+
+0:30-1:15  THE AI-ASSISTED WORKFLOW
+  Say: "I built this in five planned prompts with an AI coding assistant:
+    1. load and validate the data
+    2. add the metric cards
+    3. add the charts
+    4. add filters and export
+    5. add the health view, review everything, and write the docs."
+  Say: "Each prompt included acceptance checks. For example, an AAA/BBB example
+  calculated by hand must give a 5% portfolio return. The assistant ran
+  automated checks after every step. The final review found real bugs, such as
+  a date like 2024-1-5 being accepted, and they were fixed."
+  (Optional: show test_app.py running "all checks passed".)
+
+1:15-1:45  SAMPLE DATA AND METRIC CARDS
+  Point to the label "Sample data: all holdings and prices are fictional".
+  Walk across the cards: total invested, current value, unrealized P&L with a
+  sign and its portfolio return %, then the best and worst performer.
+  Say: "Portfolio return is total P&L divided by total invested, not an average
+  of individual returns."
+
+1:45-2:30  CHARTS
+  Hover over a donut slice to show the ticker, current value and weight.
+  Hover over a sector bar.
+  Point to the P&L chart. Say: "It is sorted from highest to lowest, green for
+  gains and red for losses, with signed rupee labels."
+
+2:30-3:15  FILTERS
+  - Set Status to "Loss". Point out "4 of 10" and "Filters active". Say: "The
+    cards, charts and table all update together."
+  - Narrow the Buy date range. Say: "This selects holdings by purchase date. It
+    does not show historical performance."
+  - Type "zzz" in the search box to show the empty-result message, then click
+    Reset filters.
+  - Click "Download filtered analysis CSV" (optional).
+
+3:15-4:00  UPLOAD AND VALIDATION
+  - Upload the invalid CSV. Show the row-numbered errors. Say: "The app rejects
+    the whole file and does not quietly fall back to the sample data."
+  - Upload the valid CSV. Point out the label "Uploaded data: <file>" and that
+    the filters reset.
+  - Remove the uploaded file to return to the sample data.
+
+4:00-4:40  PORTFOLIO HEALTH
+  Scroll to "Portfolio Health: concentration analysis".
+  Point out the largest holding and its weight, the top three's combined
+  weight, the largest sector, and the gain/loss/unchanged counts.
+  Read the summary aloud. Say: "This text is written by fixed rules from the
+  calculated figures. It is a concentration view, not a risk score, and it
+  gives no buy or sell advice."
+
+4:40-5:00  WRAP-UP
+  Say: "Next steps would need more data. Historical prices would allow
+  performance and volatility, and transaction history would allow multiple buy
+  lots and realized P&L. Thanks for watching."

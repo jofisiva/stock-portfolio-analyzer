@@ -1,0 +1,5 @@
+# Versions this app was tested with. Newer Streamlit releases change some
+# layout arguments (use_container_width), so upgrade deliberately.
+streamlit==1.37.1
+pandas==2.3.3
+plotly==5.24.1

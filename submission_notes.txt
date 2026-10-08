@@ -1,0 +1,170 @@
+STOCK PORTFOLIO ANALYZER - WEEK 1 SUBMISSION NOTES
+==================================================
+
+PROJECT OVERVIEW
+----------------
+The Stock Portfolio Analyzer is a Streamlit app, written in Python with pandas
+and Plotly. It reads a CSV snapshot of Indian stock holdings, rejects invalid
+files with errors listed by row number, and shows:
+  - summary cards (invested value, current value, unrealized P&L in INR and %,
+    best and worst performer)
+  - three interactive charts (allocation by stock, allocation by sector,
+    unrealized P&L by stock)
+  - a Portfolio Health view focused on concentration
+  - a holdings table that can be filtered and downloaded
+The sidebar filters (search, sector, ticker, buy date, status) apply to every
+view at once.
+
+Scope and honesty limits:
+  - Prices come from the CSV and are not live.
+  - The sample data is fictional.
+  - Dividends, fees, taxes and realized trades are not included.
+  - No historical performance, volatility, drawdown or benchmark figures are
+    calculated, because the CSV is a single snapshot.
+  - The health summary is written by fixed rules from the calculated figures.
+    It is not AI-generated and contains no buy or sell advice.
+
+Files:
+  app.py                 the app (validation, calculations, charts and screen
+                         are kept in separate functions)
+  test_app.py            the checks, run with: python test_app.py
+  sample_portfolio.csv   10 fictional holdings
+  requirements.txt       pinned versions that were tested
+  README.md              setup, CSV columns, formulas, features, limitations,
+                         and how to upload to GitHub
+  demo_script.txt        a walkthrough of 5 minutes or less
+  .gitignore             excludes virtual environments, secrets and private CSVs
+
+
+DEVELOPMENT ITERATIONS
+----------------------
+Planned vs executed: the work followed a plan of 5 prompts, numbered
+"PROMPT 1 OF 5" onward. All 5 were executed in one conversation with the AI
+coding assistant (Claude Code), in the order below. No other prompts were
+executed.
+
+Prompt 1 - Load, clean and display data (EXECUTED)
+  - What was built:
+      - app.py, sample_portfolio.csv (10 fictional holdings), requirements.txt,
+        README.md and .gitignore.
+      - Validation of required columns, empty files, missing values, invalid
+        dates, duplicate tickers (after trimming and uppercasing), and
+        invalid or non-finite numbers. Quantity must be above 0 and prices
+        0 or more.
+      - Errors are listed by CSV row, and an invalid upload is never replaced
+        with the sample data.
+      - Rupee formatting with Indian digit grouping. Return shows N/A when the
+        invested value is 0.
+      - test_app.py was added as a small set of checks.
+  - Checks run:
+      - The checks passed.
+      - A headless run of the app loaded 10 rows with no errors.
+      - The server health check returned HTTP 200.
+
+Prompt 2 - Metric cards (EXECUTED)
+  - What was built:
+      - Cards for total invested, current value, unrealized P&L in INR and %,
+        and best and worst performer.
+      - Portfolio return = total P&L / total invested (not an average of the
+        holdings' returns).
+      - Ties, a single holding, and N/A returns are handled. Values are signed
+        and coloured green or red.
+  - Checks run, using the AAA/BBB example (kept in test_app.py only, not in the
+    sample CSV):
+      - Invested 2,000, current value 2,100, P&L 100, portfolio return 5%,
+        AAA +20%, BBB -10%. All matched.
+      - An extra case was added where portfolio return and the average of
+        returns differ, to prove the right formula is used.
+
+Prompt 3 - Plotly charts (EXECUTED)
+  - What was built:
+      - A donut chart of allocation by stock.
+      - A bar chart of allocation by sector.
+      - A P&L bar chart sorted by P&L, coloured green for gain and red for
+        loss, with signed labels.
+      - When the total current value is zero, a message is shown instead of
+        weights.
+  - Checks run:
+      - AAA/BBB weights came out as 57.14% and 42.86%.
+      - The chart data matches the table values.
+  - Issue noted: the first manual run of the zero-value check showed neither
+    the warning nor the charts. The cause was quoting in the test command,
+    not the app. Re-running from a script file showed the expected warning.
+
+Prompt 4 - Filters, search, reset, export (EXECUTED)
+  - What was built:
+      - Sidebar filters for sector, ticker, buy date (including both end
+        dates) and status, plus company/ticker search. All views use the
+        same filtered holdings.
+      - The page shows the number of selected holdings ("N of M") and when
+        filters are active.
+      - A Reset button, and filters reset automatically when the uploaded file
+        changes.
+      - When nothing matches, a message and a reset button are shown.
+      - The filtered analysis can be downloaded as a CSV.
+  - Checks run: combined filters, date boundaries, empty results, reset (in a
+    headless run of the app), and the exported rows.
+  - Issue noted: the first server health check ran before the server had
+    started (HTTP 000). After waiting for startup it returned HTTP 200.
+
+Prompt 5 - Portfolio Health, full review, documentation (EXECUTED)
+  - What was built:
+      - A concentration view showing the largest holding and its weight, the
+        top three holdings' combined weight, the largest sector, and counts of
+        gains, losses and unchanged holdings.
+      - A plain-English summary written by fixed rules from those figures.
+  - Bugs found during the full review and fixed:
+      1. A row with more values than the header was read wrongly: pandas
+         treated the first column as an index, which shifted every column and
+         produced misleading errors. The file is now read with Python's csv
+         module, and a wrong value count is reported per row.
+      2. Blank lines in the middle of a file made the reported row numbers
+         wrong. Each row now keeps its real line number.
+      3. A date such as "2024-1-5" was accepted as YYYY-MM-DD. The exact
+         YYYY-MM-DD form is now required.
+  - Other changes:
+      - requirements.txt was pinned to the tested versions (streamlit 1.37.1,
+        pandas 2.3.3, plotly 5.24.1).
+      - Reason: newer Streamlit releases change the use_container_width
+        argument the app uses. This was a precaution; the newest Streamlit was
+        not tested.
+      - A clean virtual environment was installed from requirements.txt; the
+        checks passed and the app started (HTTP 200).
+  - Documentation: README.md, submission_notes.txt and demo_script.txt were
+    written.
+
+Still needs manual testing in a browser (not checked by the AI):
+  - Uploading a real file, then swapping it for a different file (filters
+    should reset).
+  - Removing the uploaded file (the app should return to sample data).
+  - Picking only one date in the date picker.
+  - Clicking the download buttons and opening the CSVs in a spreadsheet.
+  - How the charts, cards and sidebar look on screen.
+
+
+SCREENSHOTS (placeholders - add your own captures)
+--------------------------------------------------
+[Screenshot 1: App on start-up with the sample data label, info banner and metric cards]
+[Screenshot 2: Dashboard charts - stock donut, sector bars, P&L bars]
+[Screenshot 3: Sidebar filters active, with the "N of M" count and "Filters active" note]
+[Screenshot 4: Empty-result message with the Reset button]
+[Screenshot 5: Upload of an invalid CSV showing row-numbered errors]
+[Screenshot 6: Portfolio Health view with the summary]
+[Screenshot 7: Downloaded filtered analysis CSV opened in a spreadsheet]
+
+
+PERSONAL LEARNINGS (answer in your own words)
+---------------------------------------------
+1. What did you expect the AI to get right on the first try, and what did it
+   actually get right or wrong?
+2. Which of your prompt requirements (e.g. "do not silently discard rows",
+   "not an average of returns") most changed the result? Why?
+3. What did you check yourself in the browser, and did anything differ from
+   the AI's report?
+4. Which bug or edge case surprised you most, and how would you have found it
+   without an AI assistant?
+5. What would you add next (e.g. multiple buy lots, live prices, historical
+   data), and what data would that need?
+6. How did you decide when to trust the AI's "verified" claims and when to
+   test them yourself?
+7. What would you do differently in your prompts next week?

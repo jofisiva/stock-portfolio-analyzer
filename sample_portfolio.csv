@@ -1,0 +1,11 @@
+ticker,company_name,sector,quantity,buy_price,buy_date,current_price
+AARVITECH,Aarvi Technologies,Information Technology,25,1450.00,2023-04-12,1782.50
+BHARATLEND,Bharat Lending Corp,Financials,40,620.00,2022-11-03,548.75
+CHANDRAPHR,Chandra Pharma,Healthcare,15,2310.00,2024-01-18,2310.00
+DEVAGRID,Devagrid Power,Utilities,100,185.40,2023-07-25,231.60
+EKAMFOODS,Ekam Foods,Consumer Staples,30,940.00,2024-03-08,872.30
+GANGASTEEL,Ganga Steelworks,Materials,60,412.00,2022-08-19,498.90
+HIMRAIL,Himalaya Rail Infra,Industrials,80,265.50,2023-09-14,239.10
+INDRAAUTO,Indra Motors,Automobile,12,3120.00,2024-05-02,3564.00
+JALTEL,Jal Telecom,Communication Services,200,78.25,2023-02-27,64.80
+KAVERIRE,Kaveri Realty,Real Estate,50,505.00,2024-06-21,561.25
