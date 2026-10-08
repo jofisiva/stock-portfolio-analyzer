@@ -4,6 +4,7 @@ import csv
 import hashlib
 import io
 import math
+from datetime import date
 from pathlib import Path
 
 import numpy as np
@@ -41,7 +42,7 @@ def parse_csv(data):
     records = []
     try:
         for fields in reader:
-            if any(f.strip() for f in fields):
+            if any(f.strip() for f in fields):  # blank lines hold no data; skip them
                 records.append((reader.line_num, fields))
     except csv.Error as exc:
         return None, [f"Could not parse the file as CSV (line {reader.line_num}): {exc}"]
@@ -97,6 +98,12 @@ def validate_portfolio(raw):
             elif col != "quantity" and value < 0:
                 errors.append(f"Row {line}: {col} must be 0 or more (got {text}).")
         df[col] = nums
+
+    # Each number can be finite while quantity x price overflows (e.g. 1e308 x 1e308).
+    for price in ("buy_price", "current_price"):
+        overflow = np.isinf(df["quantity"] * df[price])
+        for line in df.index[overflow]:
+            errors.append(f"Row {line}: quantity x {price} is too large to calculate.")
 
     # strptime alone accepts 2024-1-5, so also require the exact YYYY-MM-DD shape.
     shaped = df["buy_date"].str.fullmatch(r"\d{4}-\d{2}-\d{2}")
@@ -432,6 +439,70 @@ def load_portfolio(data):
     return add_metrics(clean), []
 
 
+def xirr(flows):
+    """Annual rate r (as %) where sum(amount / (1+r)^(days/365)) = 0.
+
+    Expects money paid in (negative) before one final payout (positive), which
+    makes the sum strictly decreasing in r, so bisection finds the single root.
+    Returns NaN when there is no such pattern.
+    """
+    start = min(d for d, _ in flows)
+    t = [((d - start).days / 365, a) for d, a in flows]
+    if not any(a < 0 for _, a in t) or max(y for y, _ in t) == 0:
+        return float("nan")
+    if not any(a > 0 for _, a in t):
+        return -100.0  # everything paid in is now worth 0
+
+    def npv(r):
+        try:
+            return sum(a / (1 + r) ** y for y, a in t)
+        except OverflowError:  # r near -100% over many years: final payout dominates
+            return math.inf
+
+    low, high = -0.9999, 1.0
+    while npv(high) > 0:
+        high *= 2
+        if high > 1e6:
+            return float("nan")
+    for _ in range(200):
+        mid = (low + high) / 2
+        low, high = (mid, high) if npv(mid) > 0 else (low, mid)
+    return (low + high) / 2 * 100
+
+
+def portfolio_xirr(df, as_of):
+    """XIRR treating each holding as bought on buy_date and valued on `as_of`.
+
+    NaN when any holding is bought after `as_of` or nothing was invested.
+    """
+    if (df["buy_date"].dt.date > as_of).any() or df["invested_value"].sum() == 0:
+        return float("nan")
+    flows = [(d.date(), -v) for d, v in zip(df["buy_date"], df["invested_value"]) if v > 0]
+    flows.append((as_of, df["current_value"].sum()))
+    return xirr(flows)
+
+
+def show_annualized(selected, as_of):
+    st.subheader("Annualized return (XIRR)")
+    st.caption(
+        f"Prices treated as of **{as_of:%Y-%m-%d}**. Each row is one purchase on its buy "
+        "date (one row per ticker), so extra buys, partial sales and dividends are not "
+        "included. These are two-point returns (buy and current price), not a price history."
+    )
+    rate = portfolio_xirr(selected, as_of)
+    bought = selected["buy_date"].dt.date
+    cols = st.columns(2)
+    cols[0].metric("Portfolio XIRR", format_pct(rate), delta_color="off",
+                   help="Annual rate that makes the money invested on each buy date "
+                        "grow to today's total value.")
+    if (bought > as_of).any():
+        cols[1].warning("Some buy dates are after the as-of date, so XIRR is N/A. "
+                        "Change **Prices as of** in the sidebar.")
+    elif (as_of - bought.min()).days < 365:
+        cols[1].info("Every selected holding was bought less than a year ago, so the "
+                     "XIRR annualizes a short period and can look extreme.")
+
+
 STATUSES = ["All", "Gain", "Loss", "Unchanged"]
 FILTER_KEYS = ["f_search", "f_sectors", "f_tickers", "f_dates", "f_status"]
 
@@ -522,6 +593,10 @@ def main():
         st.download_button(f"Download {cur} sample CSV", sample_bytes,
                            file_name=sample_path.name, mime="text/csv")
         st.caption("Required columns: " + ", ".join(REQUIRED_COLUMNS))
+        as_of = st.date_input("Prices as of", value=date.today(), key="as_of",
+                              format="YYYY-MM-DD",
+                              help="The date your current_price values are from. "
+                                   "Used for the portfolio XIRR.")
 
     if uploaded is None:
         data, source = sample_bytes, sample_path.name
@@ -556,6 +631,7 @@ def main():
         st.stop()
 
     show_summary(selected, cur)
+    show_annualized(selected, as_of)
     show_charts(selected, cur)
     show_health(selected, cur)
     show_table(selected, source, active, cur)

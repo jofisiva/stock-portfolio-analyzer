@@ -52,13 +52,13 @@ There must be one row per ticker, with a header row containing these columns (ex
 | `buy_date` | date | Must be exactly `YYYY-MM-DD`, for example `2024-01-18`. |
 | `current_price` | number (₹ or $) | Must be 0 or more and a finite number. |
 
-The file must be saved as UTF-8; a "CSV UTF-8" file from Excel works. Blank lines are ignored. A row with too many or too few values is reported as an error.
+The file must be saved as UTF-8; a "CSV UTF-8" file from Excel works. Blank lines are ignored. A row with too many or too few values, or where quantity × price is too large to calculate, is reported as an error.
 
 Example:
 
 ```csv
 ticker,company_name,sector,quantity,buy_price,buy_date,current_price
-AARVITECH,Aarvi Technologies,Information Technology,25,1450.00,2023-04-12,1782.50
+AARVITECH,Aarvi Technologies (Fictional),Information Technology,25,1450.00,2023-04-12,1782.50
 ```
 
 ## Formulas

@@ -6,8 +6,8 @@ from datetime import date
 
 import pandas as pd
 
-from app import (FLAT, GAIN, LOSS, MARKETS, SAMPLE_PATH, allocation, apply_filters,
-                 export_csv, format_money, format_pct,
+from app import (FLAT, GAIN, LOSS, MARKETS, SAMPLE_PATH, allocation,
+                 apply_filters, export_csv, format_money, format_pct, portfolio_xirr, xirr,
                  format_signed_money, health_summary, load_portfolio, pnl_chart,
                  portfolio_health, portfolio_summary,
                  sector_allocation_chart, stock_allocation_chart)
@@ -85,11 +85,21 @@ def test_rejections():
     assert "Row 2: missing value(s) in sector" in errors_for("A,Co,,1,10,2024-01-01,10\n")
     assert "Row 2: buy_date '2024-02-30'" in errors_for("A,Co,X,1,10,2024-02-30,10\n")
     assert "Row 2: quantity '1e999'" in errors_for("A,Co,X,1e999,10,2024-01-01,10\n")
+    assert "Row 2: quantity x buy_price is too large" in errors_for(
+        "A,Co,X,1e308,1e308,2024-01-01,10\n"
+    )
+    # Overflow is reported on the real CSV line, after a blank line.
+    assert "Row 4: quantity x current_price is too large" in errors_for(
+        "A,Co,X,1,10,2024-01-01,10\n\nB,Co,X,1e200,1,2024-01-01,1e200\n"
+    )
     assert "Row 2: buy_price 'nan'" in errors_for("A,Co,X,1,nan,2024-01-01,10\n")
     assert "Row 2: quantity must be greater than 0" in errors_for("A,Co,X,0,10,2024-01-01,10\n")
     assert "Row 2: current_price must be 0 or more" in errors_for("A,Co,X,1,10,2024-01-01,-1\n")
     msg = errors_for("abc,Co,X,1,10,2024-01-01,10\n ABC ,Co,X,1,10,2024-01-01,10\n")
     assert "Duplicate ticker ABC in rows 2, 3" in msg
+    # Header plus only blank lines: rejected as having no holdings, not silently accepted.
+    blank_row = load_portfolio((HEADER + "\n  \n").encode())
+    assert blank_row[0] is None and "no holdings rows" in blank_row[1][0]
 
 
 def test_allocation_weights():
@@ -174,7 +184,7 @@ def test_export_rows():
 def test_app_filter_reset_and_empty():
     from streamlit.testing.v1 import AppTest
     at = AppTest.from_file("app.py").run(timeout=30)
-    assert not at.exception and len(at.metric) == 9
+    assert not at.exception and len(at.metric) == 10
     assert "10 of 10" in at.caption[0].value and "Filters active" not in at.caption[0].value
 
     at.radio(key="f_status").set_value("Loss").run()
@@ -187,7 +197,7 @@ def test_app_filter_reset_and_empty():
 
     at.button(key="reset_empty").click().run()
     assert at.radio(key="f_status").value == "All" and at.text_input(key="f_search").value == ""
-    assert "10 of 10" in at.caption[0].value and len(at.metric) == 9
+    assert "10 of 10" in at.caption[0].value and len(at.metric) == 10
 
     # A different data file (simulated by a changed fingerprint) clears filters.
     at.radio(key="f_status").set_value("Gain").run()
@@ -264,6 +274,33 @@ def test_health():
     zero = portfolio_health(load("AAA,A,X,1,100,2024-01-01,0\n"))
     assert zero["largest"] is None and zero["losses"] == 1
     assert "cannot be calculated" in health_summary(zero)
+
+
+def test_xirr():
+    # Excel's documented XIRR example: result 0.373362535 (37.34%).
+    flows = [(date(2008, 1, 1), -10000), (date(2008, 3, 1), 2750), (date(2008, 10, 30), 4250),
+             (date(2009, 2, 15), 3250), (date(2009, 4, 1), 2750)]
+    assert abs(xirr(flows) - 37.3362535) < 1e-4
+
+    as_of = date(2025, 1, 1)
+    # One holding doubled over 1827 days: XIRR = 2^(365/1827) - 1.
+    one = load("AAA,A,X,10,100,2020-01-01,200\n")
+    assert math.isclose(portfolio_xirr(one, as_of), (2 ** (365 / 1827) - 1) * 100, abs_tol=1e-6)
+
+    # Two buys a year apart: the rate must make NPV zero.
+    two = load("AAA,A,X,10,100,2020-01-01,150\nBBB,B,X,10,100,2021-01-01,100\n")
+    r = portfolio_xirr(two, as_of) / 100
+    npv = (-1000 - 1000 / (1 + r) ** (366 / 365)
+           + 2500 / (1 + r) ** ((as_of - date(2020, 1, 1)).days / 365))
+    assert abs(npv) < 1e-6
+    # It differs from the simple return (25%) because money was invested at different times.
+    assert 4 < r * 100 < 7
+
+    assert portfolio_xirr(load("AAA,A,X,1,100,2020-01-01,0\n"), as_of) == -100.0
+    assert math.isnan(portfolio_xirr(load("AAA,A,X,1,100,2026-01-01,120\n"), as_of))
+    assert math.isnan(portfolio_xirr(load("AAA,A,X,1,0,2020-01-01,120\n"), as_of))
+    # A very old buy date near -100% must not crash on overflow.
+    assert -100 < portfolio_xirr(load("AAA,A,X,1,100,1900-01-01,0.0001\n"), as_of) < 0
 
 
 def test_format_money():
